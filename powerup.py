@@ -20,11 +20,17 @@ class PowerUp(pygame.sprite.Sprite):
         if image_name:
             try:
                 self.image = pygame.image.load(image_name).convert_alpha()
-            except pygame.error as e:
-                print(f"Warning: Could not load {image_name}: {e}. Using fallback surface.")
+            except FileNotFoundError:
+                print(f"Warning: PowerUp image file not found: {image_name}. Using fallback surface.")
                 self.image = pygame.Surface([20, 20])
                 self.image.fill(fallback_color)
-        else: # Should not happen if type is valid
+            except pygame.error as e:
+                print(f"Warning: Could not load PowerUp image {image_name} (pygame error): {e}. Using fallback surface.")
+                self.image = pygame.Surface([20, 20])
+                self.image.fill(fallback_color)
+        else:
+            # This case handles if a type is passed that doesn't have a defined image_name
+            print(f"Warning: No image_name for PowerUp type '{self.type}'. Using fallback surface.")
             self.image = pygame.Surface([20, 20])
             self.image.fill(fallback_color)
 

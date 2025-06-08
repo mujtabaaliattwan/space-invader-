@@ -3,11 +3,16 @@ import pygame
 class Player(pygame.sprite.Sprite):
     def __init__(self, screen_width, screen_height):
         super().__init__()
+        image_path = "images/player.png"
         try:
             # Load the base image for the player
-            self.image_orig = pygame.image.load("images/player.png").convert_alpha()
+            self.image_orig = pygame.image.load(image_path).convert_alpha()
+        except FileNotFoundError:
+            print(f"Warning: Player image file not found: {image_path}. Using fallback surface.")
+            self.image_orig = pygame.Surface([50, 30])
+            self.image_orig.fill((0, 255, 0)) # Green fallback
         except pygame.error as e:
-            print(f"Warning: Could not load images/player.png: {e}. Using fallback surface.")
+            print(f"Warning: Could not load player image {image_path} (pygame error): {e}. Using fallback surface.")
             self.image_orig = pygame.Surface([50, 30])
             self.image_orig.fill((0, 255, 0)) # Green fallback
 

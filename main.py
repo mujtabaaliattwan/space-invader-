@@ -23,25 +23,44 @@ GAME_OVER_SCREEN = 2
 game_state = MENU
 game_over_internal_flag = False # Internal flag for game over condition
 
-# Sound Effects (Placeholders)
-try:
-    player_shoot_sound = pygame.mixer.Sound("sounds/player_shoot.wav")
-    enemy_shoot_sound = pygame.mixer.Sound("sounds/enemy_shoot.wav")
-    enemy_explode_sound = pygame.mixer.Sound("sounds/enemy_explode.wav")
-    player_explode_sound = pygame.mixer.Sound("sounds/player_explode.wav")
-    powerup_collect_sound = pygame.mixer.Sound("sounds/powerup_collect.wav")
-except pygame.error: # Generic error for sound loading
-    class DummySound:
-        def play(self): pass
-    player_shoot_sound = enemy_shoot_sound = enemy_explode_sound = player_explode_sound = powerup_collect_sound = DummySound()
-    print("Warning: Sound files could not be loaded. Using dummy sounds.")
+# Sound Effects
+sound_files = {
+    "player_shoot": "sounds/player_shoot.wav",
+    "enemy_shoot": "sounds/enemy_shoot.wav",
+    "enemy_explode": "sounds/enemy_explode.wav",
+    "player_explode": "sounds/player_explode.wav",
+    "powerup_collect": "sounds/powerup_collect.wav",
+    "boss_hit": "sounds/boss_hit.wav",
+    "game_over": "sounds/game_over.wav"
+}
+sounds = {}
+for name, path in sound_files.items():
+    try:
+        sounds[name] = pygame.mixer.Sound(path)
+    except FileNotFoundError:
+        print(f"Warning: Sound file not found: {path}. '{name}' sound will be disabled.")
+        sounds[name] = None
+    except pygame.error as e: # Catch other pygame specific errors e.g. format issues
+        print(f"Warning: Could not load sound file {path} (pygame error): {e}. '{name}' sound will be disabled.")
+        sounds[name] = None
+
 
 # Background Music
+music_loaded = False
 try:
-    pygame.mixer.music.load("music/background_music.ogg")
+    # Attempt to load .wav first as per file creation plan, then .ogg as original fallback
+    pygame.mixer.music.load("sounds/background_music.wav")
+    music_loaded = True
+except pygame.error as e_wav:
+    print(f"Warning: 'sounds/background_music.wav' could not be loaded: {e_wav}. Trying .ogg.")
+    try:
+        pygame.mixer.music.load("music/background_music.ogg") # Original fallback path
+        music_loaded = True
+    except pygame.error as e_ogg:
+        print(f"Warning: Background music 'music/background_music.ogg' also could not be loaded: {e_ogg}")
+
+if music_loaded:
     pygame.mixer.music.play(-1)
-except pygame.error:
-    print("Warning: Background music could not be loaded.")
 
 # Font
 font_name = pygame.font.match_font('arial')
@@ -225,7 +244,9 @@ while running:
                 if event.key == pygame.K_SPACE:
                     if player.alive():
                         p_bullet = player.shoot()
-                        if p_bullet: all_sprites.add(p_bullet); player_bullets.add(p_bullet); player_shoot_sound.play()
+                if p_bullet:
+                    all_sprites.add(p_bullet); player_bullets.add(p_bullet)
+                    if sounds.get("player_shoot"): sounds["player_shoot"].play()
                 elif event.key == pygame.K_ESCAPE: game_state = MENU
 
         keys = pygame.key.get_pressed()
@@ -233,18 +254,25 @@ while running:
 
         for enemy_sprite in list(enemies):
             e_bullet = enemy_sprite.update()
-            if e_bullet: all_sprites.add(e_bullet); enemy_bullets.add(e_bullet); enemy_shoot_sound.play()
+            if e_bullet:
+                all_sprites.add(e_bullet); enemy_bullets.add(e_bullet)
+                if sounds.get("enemy_shoot"): sounds["enemy_shoot"].play()
 
         hit_enemies_dict = pygame.sprite.groupcollide(enemies, player_bullets, False, True)
         for enemy_hit, bullets_that_hit in hit_enemies_dict.items():
             for _ in bullets_that_hit:
-                enemy_hit.hit()
+                enemy_hit.hit() # hit() method handles health decrease and self.kill()
+                if isinstance(enemy_hit, BossEnemy) and enemy_hit.alive(): # Boss was hit but not killed
+                    if sounds.get("boss_hit"): sounds["boss_hit"].play()
+
                 if not enemy_hit.alive():
-                    score += 10; enemy_explode_sound.play()
+                    score += 10
+                    if sounds.get("enemy_explode"): sounds["enemy_explode"].play()
                     expl_size = 'large' if isinstance(enemy_hit, BossEnemy) else 'medium'
                     all_sprites.add(Explosion(enemy_hit.rect.center, expl_size))
-                    if isinstance(enemy_hit, BossEnemy):
+                    if isinstance(enemy_hit, BossEnemy): # Boss was defeated by this hit
                         boss_battle_active = False; score += boss_defeat_score_bonus; print("Boss defeated!")
+                        # Enemy explode sound already played. Could have a specific boss_defeat_sound.
                     elif not boss_battle_active and random.random() < 0.15:
                         powerup_type = random.choice(['rapid_fire', 'shield'])
                         new_powerup = PowerUp(enemy_hit.rect.center, powerup_type)
@@ -260,19 +288,32 @@ while running:
             all_sprites.add(boss); enemies.add(boss); print("Boss incoming!")
 
         coll_powerups = pygame.sprite.spritecollide(player, powerups_group, True)
-        for pu in coll_powerups: player.activate_powerup(pu.type); powerup_collect_sound.play()
+        for pu in coll_powerups:
+            player.activate_powerup(pu.type)
+            if sounds.get("powerup_collect"): sounds["powerup_collect"].play()
 
         if player.alive():
             if pygame.sprite.spritecollide(player, enemy_bullets, True):
                 if player.is_shielded: player.is_shielded = False; player.remove_shield_visual(); print("Shield absorbed bullet!")
                 else: player_lives -= 1
-            if pygame.sprite.spritecollide(player, enemies, True): # Enemies themselves collide
-                if player.is_shielded: player.is_shielded = False; player.remove_shield_visual(); print("Shield absorbed enemy collision!")
-                else: player_lives -=1; enemy_explode_sound.play() # Each colliding enemy hurts player once
+            # Corrected: Enemy collision should also decrement lives by number of enemies hit if that's the design
+            # For now, it's one life per colliding enemy because the enemy is killed.
+            colliding_enemies_direct = pygame.sprite.spritecollide(player, enemies, True)
+            if colliding_enemies_direct: # Enemies themselves collide
+                if player.is_shielded:
+                    player.is_shielded = False; player.remove_shield_visual();
+                    print("Shield absorbed enemy collision!")
+                    # Kill the specific enemies that collided if shield absorbs them without player damage
+                    for shielded_enemy_hit in colliding_enemies_direct: shielded_enemy_hit.kill()
+                else:
+                    player_lives -= len(colliding_enemies_direct) # Lose life for each colliding enemy
+                    for _ in colliding_enemies_direct:
+                        if sounds.get("enemy_explode"): sounds["enemy_explode"].play() # Enemy explodes on player
 
             if player_lives <= 0:
                 if not game_over_internal_flag:
-                    player_explode_sound.play(); all_sprites.add(Explosion(player.rect.center, 'large'))
+                    if sounds.get("player_explode"): sounds["player_explode"].play()
+                    all_sprites.add(Explosion(player.rect.center, 'large'))
                 game_over_internal_flag = True; player.kill(); print("Game Over internal flag set!")
 
         all_sprites.update()

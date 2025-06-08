@@ -5,10 +5,15 @@ from bullet import Bullet # Import Bullet class
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, screen_width, speed=2, shoot_chance=0.002):
         super().__init__()
+        image_path = "images/enemy1.png"
         try:
-            self.image_orig = pygame.image.load("images/enemy1.png").convert_alpha()
+            self.image_orig = pygame.image.load(image_path).convert_alpha()
+        except FileNotFoundError:
+            print(f"Warning: Enemy image file not found: {image_path}. Using fallback.")
+            self.image_orig = pygame.Surface([35, 25])
+            self.image_orig.fill((255, 0, 0)) # Red fallback
         except pygame.error as e:
-            print(f"Warning: Could not load images/enemy1.png: {e}. Using fallback.")
+            print(f"Warning: Could not load enemy image {image_path} (pygame error): {e}. Using fallback.")
             self.image_orig = pygame.Surface([35, 25])
             self.image_orig.fill((255, 0, 0)) # Red fallback
         self.image = self.image_orig.copy()
@@ -54,14 +59,18 @@ class FastEnemy(Enemy):
         current_shoot_chance = shoot_chance_override if shoot_chance_override is not None else default_shoot_chance
 
         super().__init__(x, y, screen_width, speed=current_speed, shoot_chance=current_shoot_chance)
+        image_path = "images/enemy2.png"
         try:
-            self.image_orig = pygame.image.load("images/enemy2.png").convert_alpha()
+            self.image_orig = pygame.image.load(image_path).convert_alpha()
+        except FileNotFoundError:
+            print(f"Warning: FastEnemy image file not found: {image_path}. Using fallback.")
+            self.image_orig = pygame.Surface([35, 25])
+            self.image_orig.fill((255, 100, 0))
         except pygame.error as e:
-            print(f"Warning: Could not load images/enemy2.png for FastEnemy: {e}. Using fallback.")
-            self.image_orig = pygame.Surface([35, 25]) # Fallback size
-            self.image_orig.fill((255, 100, 0)) # Brighter Red/Orange fallback
+            print(f"Warning: Could not load FastEnemy image {image_path} (pygame error): {e}. Using fallback.")
+            self.image_orig = pygame.Surface([35, 25])
+            self.image_orig.fill((255, 100, 0))
         self.image = self.image_orig.copy()
-        # self.speed and self.shoot_chance are set by super() call. Rect needs to be updated if size changes.
         self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
 
 
@@ -75,14 +84,19 @@ class StrongEnemy(Enemy):
         current_shoot_chance = shoot_chance_override if shoot_chance_override is not None else default_shoot_chance
 
         super().__init__(x, y, screen_width, speed=current_speed, shoot_chance=current_shoot_chance)
+        image_path = "images/enemy3.png"
         try:
-            self.image_orig = pygame.image.load("images/enemy3.png").convert_alpha()
+            self.image_orig = pygame.image.load(image_path).convert_alpha()
+        except FileNotFoundError:
+            print(f"Warning: StrongEnemy image file not found: {image_path}. Using fallback.")
+            self.image_orig = pygame.Surface([40, 30])
+            self.image_orig.fill((200, 0, 0))
         except pygame.error as e:
-            print(f"Warning: Could not load images/enemy3.png for StrongEnemy: {e}. Using fallback.")
-            self.image_orig = pygame.Surface([40, 30]) # Slightly larger fallback
-            self.image_orig.fill((200, 0, 0)) # Darker Red fallback
+            print(f"Warning: Could not load StrongEnemy image {image_path} (pygame error): {e}. Using fallback.")
+            self.image_orig = pygame.Surface([40, 30])
+            self.image_orig.fill((200, 0, 0))
         self.image = self.image_orig.copy()
-        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y)) # Update rect if size changed
+        self.rect = self.image.get_rect(topleft=(self.rect.x, self.rect.y))
 
         self.health = 3
         self.hit_flash_timer = 0 # For timed flash effect
@@ -115,12 +129,17 @@ class BossEnemy(Enemy):
         current_shoot_chance = shoot_chance_override if shoot_chance_override is not None else default_shoot_chance
 
         super().__init__(x, y, screen_width, speed=current_speed, shoot_chance=current_shoot_chance)
+        image_path = "images/boss.png"
         try:
-            self.image_orig = pygame.image.load("images/boss.png").convert_alpha()
-        except pygame.error as e:
-            print(f"Warning: Could not load images/boss.png: {e}. Using fallback.")
+            self.image_orig = pygame.image.load(image_path).convert_alpha()
+        except FileNotFoundError:
+            print(f"Warning: Boss image file not found: {image_path}. Using fallback.")
             self.image_orig = pygame.Surface([100,70])
-            self.image_orig.fill((150,0,150)) # Purple fallback
+            self.image_orig.fill((150,0,150))
+        except pygame.error as e:
+            print(f"Warning: Could not load Boss image {image_path} (pygame error): {e}. Using fallback.")
+            self.image_orig = pygame.Surface([100,70])
+            self.image_orig.fill((150,0,150))
         self.image = self.image_orig.copy()
         self.rect = self.image.get_rect(centerx=x, top=y)
 

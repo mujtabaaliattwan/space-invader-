@@ -5,12 +5,16 @@ class Bullet(pygame.sprite.Sprite):
         super().__init__()
 
         image_path = "images/bullet_player.png" if bullet_type == 'player' else "images/bullet_enemy.png"
-        color_fallback = (255,255,255) if bullet_type == 'player' else (255,200,0) # White for player, Orange for enemy
+        color_fallback = (255,255,255) if bullet_type == 'player' else (255,200,0)
 
         try:
             self.image = pygame.image.load(image_path).convert_alpha()
+        except FileNotFoundError:
+            print(f"Warning: Bullet image file not found: {image_path}. Using fallback surface.")
+            self.image = pygame.Surface([5, 10])
+            self.image.fill(color_fallback)
         except pygame.error as e:
-            print(f"Warning: Could not load {image_path}: {e}. Using fallback surface.")
+            print(f"Warning: Could not load bullet image {image_path} (pygame error): {e}. Using fallback surface.")
             self.image = pygame.Surface([5, 10])
             self.image.fill(color_fallback)
 
